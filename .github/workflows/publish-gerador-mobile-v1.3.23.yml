@@ -1,0 +1,45 @@
+name: Publicar Gerador Mobile v1.3.23
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/publish-gerador-mobile-v1.3.23.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar APK assinado do servidor OMNES
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 5 --retry-delay 3 --max-time 300             -o Omnes-Tech-Gerador-de-Licencas-v1.3.23.apk             "https://omnes-tech-license-server.onrender.com/api/v1/mobile-update/download"
+
+      - name: Validar APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f Omnes-Tech-Gerador-de-Licencas-v1.3.23.apk
+          SIZE="$(stat -c%s Omnes-Tech-Gerador-de-Licencas-v1.3.23.apk)"
+          test "$SIZE" -gt 40000000
+          SHA="$(sha256sum Omnes-Tech-Gerador-de-Licencas-v1.3.23.apk | awk '{print $1}')"
+          test "$SHA" = "674dc41592ffb8bf1dc6716cfb7c886ec76d13622141a2a1bfd866bdb4eb02f0"
+          printf '%s  %s
+' "$SHA" "Omnes-Tech-Gerador-de-Licencas-v1.3.23.apk" > SHA256SUMS-Gerador-Mobile-v1.3.23.txt
+
+      - name: Publicar Release pública
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="gerador-mobile-v1.3.23"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release delete "$TAG" --cleanup-tag --yes
+          fi
+          gh release create "$TAG"             Omnes-Tech-Gerador-de-Licencas-v1.3.23.apk             SHA256SUMS-Gerador-Mobile-v1.3.23.txt             --target "$GITHUB_SHA"             --title "Omnes Tech Gerador de Licenças Mobile v1.3.23"             --notes "APK oficial assinado do Omnes Tech Gerador de Licenças Mobile v1.3.23. Repositório destinado somente a downloads públicos; o código-fonte do aplicativo permanece privado."
